@@ -28,18 +28,31 @@ An AI-powered document comparison tool that compares Sales Orders with Purchase 
 
 ## Environment Variables
 
-Create a `.env` file in the root directory:
+1. **Copy the example file**:
+   ```bash
+   cp .env.example .env
+   ```
 
-```env
-# Google AI API
-GOOGLE_API_KEY=your_google_api_key_here
+2. **Edit the `.env` file** with your actual credentials:
+   ```env
+   # Google AI API
+   GOOGLE_API_KEY=your_actual_google_api_key_here
+   
+   # ERP System (Odoo)
+   ODOO_URL=https://your-odoo-instance.com
+   ODOO_DB=your_database_name
+   ODOO_USERNAME=your_username
+   ODOO_PASSWORD="your_password"
+   ```
 
-# ERP System (Odoo)
-ODOO_URL=https://your-odoo-instance.com
-ODOO_DB=your_database_name
-ODOO_USERNAME=your_username
-ODOO_PASSWORD="your_password"
-```
+### Getting API Keys:
+
+- **Google AI API Key**: 
+  1. Go to [Google AI Studio](https://makersuite.google.com/app/apikey)
+  2. Create a new API key
+  3. Copy and paste it into your `.env` file
+
+- **ERP Credentials**: Contact your system administrator for the correct ERP connection details.
 
 ## Installation
 

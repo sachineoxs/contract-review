@@ -57,10 +57,25 @@ function OrderComparatorClientContent() {
 
   const handlePOFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     if (event.target.files && event.target.files.length > 0) {
-      setPurchaseOrderFiles(Array.from(event.target.files));
+      const files = Array.from(event.target.files);
+      
+      // Check for non-PDF files
+      const nonPdfFiles = files.filter(file => !file.type.includes('pdf') && !file.type.includes('PDF'));
+      if (nonPdfFiles.length > 0) {
+        setError('Processing failed: PDF files only. Please upload PDF documents.');
+        toast({
+          variant: "destructive",
+          title: "Invalid File Type",
+          description: "Please upload PDF files only.",
+          duration: 5000,
+        });
+        return;
+      }
+      
+      setPurchaseOrderFiles(files);
       setComparisonResult(null);
       setError(null);
-      setPoFileSelectedText(`${event.target.files.length} document(s) selected`);
+      setPoFileSelectedText(`${files.length} document(s) selected`);
     } else {
       setPurchaseOrderFiles([]);
       setPoFileSelectedText("Upload a Document");

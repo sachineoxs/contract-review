@@ -210,15 +210,15 @@ export async function compareOrdersAction(
         if (lowerCaseMessage.includes("authentication failed") ||
             lowerCaseMessage.includes("login failed") ||
             lowerCaseMessage.includes("returned an invalid uid")) {
-            clientFacingMessage = `ERP Authentication Failed: ${e.message}. Please check server credentials.`;
+            clientFacingMessage = `Processing failed: Authentication error. Please check server credentials.`;
         } else if (lowerCaseMessage.includes("not found in the system")) {
-            clientFacingMessage = `ERP Data Error: ${e.message}. Ensure the Sales Order name is correct.`;
+            clientFacingMessage = `Processing failed: Sales Order not found. Please check the order name.`;
         } else if (lowerCaseMessage.includes("failed to download pdf") ||
                    lowerCaseMessage.includes("did not return a pdf document") ||
                    lowerCaseMessage.includes("the system did not return a valid pdf") ||
                    lowerCaseMessage.includes("returned an html page") ||
                    lowerCaseMessage.includes("returned content type")) {
-            clientFacingMessage = `ERP PDF Fetch Error: ${e.message}. Problem obtaining SO PDF from the system.`;
+            clientFacingMessage = `Processing failed: PDF not detected. Please ensure documents are in PDF format.`;
         } else if (lowerCaseMessage.includes("model not found") || lowerCaseMessage.includes("not found for api version") || (e.cause as any)?.message?.includes("NOT_FOUND")) {
              clientFacingMessage = `AI Model Error: The specified AI model is not accessible. Original error: ${e.message}`;
         } else if (lowerCaseMessage.includes("consumer_suspended") || lowerCaseMessage.includes("permission denied") || lowerCaseMessage.includes("api key not valid")) {
@@ -236,8 +236,8 @@ export async function compareOrdersAction(
     }
 
     console.error(logMessage, e); 
-    const finalClientMessage = `Processing Failed: ${clientFacingMessage.replace(/[^\x20-\x7E]/g, '').substring(0, 500)}. Please check server logs if the issue persists.`;
-
+    // const finalClientMessage = `Processing Failed: ${clientFacingMessage.replace(/[^\x20-\x7E]/g, '').substring(0, 500)}. Please check server logs if the issue persists.`;
+    const finalClientMessage = `Error: Please check the file you have uploaded`;
     return { error: finalClientMessage };
   }
 }

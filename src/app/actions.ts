@@ -97,22 +97,22 @@ async function fetchSalesOrderPdfFromOdoo(
   const axiosInstance = cookieJarSupport(axios.create({ jar, withCredentials: true }));
 
   const loginUrl = `${odooUrl}/web/session/authenticate`;
-  try {
-    console.log('SERVER_ACTION: Attempting ERP HTTP login for SO PDF download...');
-    const loginResponse = await axiosInstance.post(loginUrl, {
-      jsonrpc: '2.0', 
-      method: 'call', 
-      params: { 
-        db: odooDb, 
-        login: odooUsername, 
-        password: odooPassword 
-      }
-    }, { 
-      headers: { 
-        'Content-Type': 'application/json',
-        'Accept': 'application/json'
-      } 
-    });
+try {
+  console.log('SERVER_ACTION: Attempting ERP HTTP login for SO PDF download...');
+  const loginResponse = await axiosInstance.post(loginUrl, {
+    jsonrpc: '2.0', 
+    method: 'call', 
+    params: { 
+      db: odooDb, 
+      login: odooUsername, 
+      password: odooPassword 
+    }
+  }, { 
+    headers: { 
+      'Content-Type': 'application/json',
+      'Accept': 'application/json'
+    } 
+  });
 
     if (loginResponse.status !== 200 || !loginResponse.data.result) {
       console.error('SERVER_ACTION: ERP HTTP Login Failed. Status:', loginResponse.status, 'Response Data:', loginResponse.data);

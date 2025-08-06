@@ -32,14 +32,25 @@ async function fetchSalesOrderPdfFromOdoo(
   odooPassword: string
 ): Promise<FetchedSalesOrderPdfDetails> {
   console.log(`SERVER_ACTION: Attempting to fetch Sales Order PDF for user input: ${soUserInputName}`);
-  const commonClient = xmlrpc.createSecureClient(`${odooUrl}/xmlrpc/2/common`);
+  console.log(`SERVER_ACTION: ERP URL: ${odooUrl}, DB: ${odooDb}, Username: ${odooUsername}`);
+  const commonClient = xmlrpc.createSecureClient({
+    host: 'sastg.eoxs.com',
+    port: 443,
+    path: '/xmlrpc/2/common'
+  });
   
   let uid: number;
   try {
     uid = await new Promise((resolve, reject) => {
       commonClient.methodCall('authenticate', [odooDb, odooUsername, odooPassword, {}], (error, value) => {
-        if (error) return reject(new Error(`ERP XML-RPC authentication failed: ${error.message}.`));
-        if (!value || typeof value !== 'number' || value <= 0) return reject(new Error('ERP XML-RPC authentication returned an invalid UID.'));
+        if (error) {
+          console.error('SERVER_ACTION: XML-RPC Authentication Error Details:', error);
+          return reject(new Error(`ERP XML-RPC authentication failed: ${error.message}.`));
+        }
+        if (!value || typeof value !== 'number' || value <= 0) {
+          console.error('SERVER_ACTION: Invalid UID returned:', value);
+          return reject(new Error('ERP XML-RPC authentication returned an invalid UID.'));
+        }
         resolve(value);
       });
     });
@@ -50,7 +61,11 @@ async function fetchSalesOrderPdfFromOdoo(
   }
 
   // Search for sales orders using XML-RPC
-  const objectClient = xmlrpc.createSecureClient(`${odooUrl}/xmlrpc/2/object`);
+  const objectClient = xmlrpc.createSecureClient({
+    host: 'sastg.eoxs.com',
+    port: 443,
+    path: '/xmlrpc/2/object'
+  });
   let sales: any[] = [];
   try {
     sales = await new Promise((resolve, reject) => {
@@ -236,8 +251,7 @@ export async function compareOrdersAction(
     }
 
     console.error(logMessage, e); 
-    const finalClientMessage = `Processing Failed: ${clientFacingMessage.replace(/[^\x20-\x7E]/g, '').substring(0, 500)}. Please check server logs if the issue persists.`;
-    // const finalClientMessage = `Error: Please check the file you have uploaded`;
+    const finalClientMessage = clientFacingMessage.replace(/[^\x20-\x7E]/g, '').substring(0, 500);
     return { error: finalClientMessage };
   }
 }

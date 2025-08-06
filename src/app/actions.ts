@@ -2,11 +2,11 @@
 // src/app/actions.ts
 'use server';
 
-import { compareOrderDetails, type CompareOrderDetailsOutput } from '@/ai/flows/compare-order-details';
 import xmlrpc from 'xmlrpc';
 import axios from 'axios';
 import { wrapper as cookieJarSupport } from 'axios-cookiejar-support';
 import { CookieJar } from 'tough-cookie';
+import { compareOrderDetails, type CompareOrderDetailsOutput } from '@/ai/flows/compare-order-details';
 
 interface FetchedPdfDetails {
   dataUri: string;
@@ -96,29 +96,44 @@ async function fetchSalesOrderPdfFromOdoo(
   const jar = new CookieJar();
   const axiosInstance = cookieJarSupport(axios.create({ jar, withCredentials: true }));
 
-  const loginUrl = `${odooUrl}/web/session/authenticate`;
-  try {
-    console.log('SERVER_ACTION: Attempting ERP HTTP login for SO PDF download...');
-    const loginResponse = await axiosInstance.post(loginUrl, {
-      jsonrpc: '2.0', method: 'call', params: { db: odooDb, login: odooUsername, password: odooPassword }
-    }, { headers: { 'Content-Type': 'application/json' } });
+  // Get SO PDF via IR Attachment (XML-RPC approach)
+  console.log('SERVER_ACTION: Attempting to get SO PDF via IR Attachment...');
+  
+  const attachments = await new Promise<any[]>((resolve, reject) => {
+    objectClient.methodCall('execute_kw', [
+      odooDb, uid, odooPassword,
+      'ir.attachment', 'search_read',
+      [[['res_model', '=', 'sale.order'], ['res_id', '=', saleId]]],
+      { fields: ['id', 'name', 'mimetype', 'datas'] }
+    ], (error: any, value: any) => {
+      if (error) {
+        console.error('SERVER_ACTION: Attachment search failed:', error);
+        reject(error);
+      } else {
+        console.log('SERVER_ACTION: Attachment search successful. Found:', value.length, 'attachments');
+        resolve(value);
+      }
+    });
+  });
 
-    if (loginResponse.status !== 200 || !loginResponse.data.result) {
-      console.error('SERVER_ACTION: ERP HTTP Login Failed. Status:', loginResponse.status, 'Response Data:', loginResponse.data);
-      const reason = loginResponse.data?.error?.data?.message || loginResponse.data?.error?.message || 'Response format unexpected or error indicated by the system.';
-      throw new Error(`ERP HTTP login failed: ${reason}.`);
-    }
-    console.log('SERVER_ACTION: ERP HTTP login successful for SO PDF download.');
-  } catch (loginErr: any) {
-    console.error('SERVER_ACTION: ERP HTTP Login Request Error:', loginErr.response?.status, loginErr.response?.data, loginErr.message);
-    const errorDetail = loginErr.response?.data?.error?.data?.message || loginErr.response?.data?.error?.message || loginErr.message || 'Unknown HTTP login error';
-    throw new Error(`ERP HTTP login request failed: ${errorDetail}. Could not establish session for SO PDF download.`);
+  // Find the SO PDF attachment
+  const soPdfAttachment = attachments.find((att: any) => 
+    att.name && att.name.toLowerCase().includes('so') && 
+    att.mimetype === 'application/pdf'
+  );
+
+  if (!soPdfAttachment || !soPdfAttachment.datas) {
+    throw new Error(`ERP PDF not found: No SO PDF attachment available for Sales Order ${soUserInputName}`);
   }
 
-  const reportUrl = `${odooUrl}/report/pdf/sale.report_saleorder/${saleId}`;
-  console.log(`SERVER_ACTION: Attempting to download SO PDF from: ${reportUrl}`);
-  const pdfResponse = await axiosInstance.get(reportUrl, { responseType: 'arraybuffer' });
-  const pdfBuffer = Buffer().from(pdfResponse.data);
+  console.log('SERVER_ACTION: Found SO PDF attachment:', soPdfAttachment.name);
+  console.log('SERVER_ACTION: PDF size:', soPdfAttachment.datas.length, 'characters');
+
+  // Convert base64 to PDF buffer
+  const pdfBuffer = Buffer.from(soPdfAttachment.datas, 'base64');
+  console.log('SERVER_ACTION: PDF buffer size:', pdfBuffer.length, 'bytes');
+  
+  // Validate PDF content
   const startOfFile = pdfBuffer.subarray(0, 100).toString('utf-8').toLowerCase();
   
   if (startOfFile.includes('<!doctype html') || startOfFile.includes('<html')) {
@@ -126,18 +141,10 @@ async function fetchSalesOrderPdfFromOdoo(
     throw new Error(`The system did not return a PDF for '${actualSaleOrderName}'. It returned an HTML page, which usually indicates a login or permissions issue.`);
   }
 
-  const contentType = pdfResponse.headers['content-type'] || pdfResponse.headers['Content-Type'];
-  console.log(`SERVER_ACTION: SO PDF Download Response Status: ${pdfResponse.status}, Content-Type: ${contentType}`);
-
-  if (pdfResponse.status !== 200 || !pdfResponse.data || !(pdfResponse.data.byteLength > 0)) {
-    let errorDetails = `The system returned an empty or invalid response for Sales Order '${actualSaleOrderName}'. Status: ${pdfResponse.status}.`;
-    console.error('SERVER_ACTION:', errorDetails, 'Data length:', pdfResponse.data?.byteLength);
-    throw new Error(errorDetails);
-  }
-  console.log(`SERVER_ACTION: Successfully fetched SO PDF: ${actualSaleOrderName}.pdf, Size: ${pdfResponse.data.byteLength} bytes`);
+  console.log(`SERVER_ACTION: Successfully fetched SO PDF: ${actualSaleOrderName}.pdf, Size: ${pdfBuffer.length} bytes`);
 
   const base64Pdf = pdfBuffer.toString('base64');
-  const mimeType = contentType && contentType.toLowerCase().includes('application/pdf') ? 'application/pdf' : 'application/octet-stream';
+  const mimeType = 'application/pdf';
   
   return {
     dataUri: `data:${mimeType};base64,${base64Pdf}`,

@@ -236,8 +236,8 @@ export async function compareOrdersAction(
     }
 
     console.error(logMessage, e); 
-    // const finalClientMessage = `Processing Failed: ${clientFacingMessage.replace(/[^\x20-\x7E]/g, '').substring(0, 500)}. Please check server logs if the issue persists.`;
-    const finalClientMessage = `Error: Please check the file you have uploaded`;
+    const finalClientMessage = `Processing Failed: ${clientFacingMessage.replace(/[^\x20-\x7E]/g, '').substring(0, 500)}. Please check server logs if the issue persists.`;
+    // const finalClientMessage = `Error: Please check the file you have uploaded`;
     return { error: finalClientMessage };
   }
 }

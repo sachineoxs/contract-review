@@ -100,8 +100,19 @@ async function fetchSalesOrderPdfFromOdoo(
   try {
     console.log('SERVER_ACTION: Attempting ERP HTTP login for SO PDF download...');
     const loginResponse = await axiosInstance.post(loginUrl, {
-      jsonrpc: '2.0', method: 'call', params: { db: odooDb, login: odooUsername, password: odooPassword }
-    }, { headers: { 'Content-Type': 'application/json' } });
+      jsonrpc: '2.0', 
+      method: 'call', 
+      params: { 
+        db: odooDb, 
+        login: odooUsername, 
+        password: odooPassword 
+      }
+    }, { 
+      headers: { 
+        'Content-Type': 'application/json',
+        'Accept': 'application/json'
+      } 
+    });
 
     if (loginResponse.status !== 200 || !loginResponse.data.result) {
       console.error('SERVER_ACTION: ERP HTTP Login Failed. Status:', loginResponse.status, 'Response Data:', loginResponse.data);
@@ -109,6 +120,7 @@ async function fetchSalesOrderPdfFromOdoo(
       throw new Error(`ERP HTTP login failed: ${reason}.`);
     }
     console.log('SERVER_ACTION: ERP HTTP login successful for SO PDF download.');
+    console.log('SERVER_ACTION: Login response:', JSON.stringify(loginResponse.data.result, null, 2));
   } catch (loginErr: any) {
     console.error('SERVER_ACTION: ERP HTTP Login Request Error:', loginErr.response?.status, loginErr.response?.data, loginErr.message);
     const errorDetail = loginErr.response?.data?.error?.data?.message || loginErr.response?.data?.error?.message || loginErr.message || 'Unknown HTTP login error';
@@ -117,7 +129,17 @@ async function fetchSalesOrderPdfFromOdoo(
 
   const reportUrl = `${odooUrl}/report/pdf/sale.report_saleorder/${saleId}`;
   console.log(`SERVER_ACTION: Attempting to download SO PDF from: ${reportUrl}`);
-  const pdfResponse = await axiosInstance.get(reportUrl, { responseType: 'arraybuffer' });
+  
+  // Add a small delay to ensure session is established
+  await new Promise(resolve => setTimeout(resolve, 1000));
+  
+  const pdfResponse = await axiosInstance.get(reportUrl, { 
+    responseType: 'arraybuffer',
+    headers: {
+      'Accept': 'application/pdf,text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+      'User-Agent': 'Mozilla/5.0 (compatible; OdooBot/1.0)'
+    }
+  });
   const pdfBuffer = Buffer().from(pdfResponse.data);
   const startOfFile = pdfBuffer.subarray(0, 100).toString('utf-8').toLowerCase();
   
